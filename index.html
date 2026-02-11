@@ -55,7 +55,6 @@
             </div>
         </div>
     </div>
-    
     <div class="flex items-center gap-4">
         <div id="last-update" class="hidden sm:block text-xs font-mono text-blue-300 bg-white/5 px-3 py-1 rounded-lg">--:--:--</div>
         <button onclick="loadData()" class="bg-blue-600 hover:bg-blue-500 p-2.5 rounded-xl transition-all shadow-lg active:scale-95">
@@ -67,21 +66,14 @@
 
 <main class="max-w-7xl mx-auto p-4 md:p-8">
   <div class="flex overflow-x-auto gap-2 mb-8 no-scrollbar pb-2">
-    <button onclick="switchCategory('device')" id="tab-device" class="tab-active px-6 py-3 rounded-2xl font-bold text-sm whitespace-nowrap transition-all flex items-center gap-2">
-        📱 Device
-    </button>
-    <button onclick="switchCategory('aksesoris')" id="tab-aksesoris" class="bg-white text-slate-500 border border-slate-200 px-6 py-3 rounded-2xl font-bold text-sm whitespace-nowrap transition-all flex items-center gap-2">
-        🎧 Aksesoris
-    </button>
-    <button onclick="switchCategory('demolive')" id="tab-demolive" class="bg-white text-slate-500 border border-slate-200 px-6 py-3 rounded-2xl font-bold text-sm whitespace-nowrap transition-all flex items-center gap-2">
-        ✨ Demo Live
-    </button>
+    <button onclick="switchCategory('device')" id="tab-device" class="tab-active px-6 py-3 rounded-2xl font-bold text-sm whitespace-nowrap transition-all flex items-center gap-2">📱 Device</button>
+    <button onclick="switchCategory('aksesoris')" id="tab-aksesoris" class="bg-white text-slate-500 border border-slate-200 px-6 py-3 rounded-2xl font-bold text-sm whitespace-nowrap transition-all flex items-center gap-2">🎧 Aksesoris</button>
+    <button onclick="switchCategory('demolive')" id="tab-demolive" class="bg-white text-slate-500 border border-slate-200 px-6 py-3 rounded-2xl font-bold text-sm whitespace-nowrap transition-all flex items-center gap-2">✨ Demo Live</button>
   </div>
 
   <div class="mb-8 flex flex-col md:flex-row gap-4 items-center justify-between">
     <div class="relative w-full max-w-md group">
-        <input id="search-bar" type="text" placeholder="Cari unit..." 
-               class="w-full bg-white border-2 border-slate-200 rounded-2xl px-6 py-4 pl-14 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none font-semibold transition-all" oninput="filterItems()">
+        <input id="search-bar" type="text" placeholder="Cari unit..." class="w-full bg-white border-2 border-slate-200 rounded-2xl px-6 py-4 pl-14 shadow-sm focus:border-blue-500 outline-none font-semibold transition-all" oninput="filterItems()">
         <div class="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
         </div>
@@ -100,7 +92,7 @@
 
   <div id="loader" class="flex flex-col items-center justify-center py-20 hidden">
     <div class="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-    <p class="mt-4 font-bold text-slate-400 animate-pulse">Sinkronisasi Data...</p>
+    <p class="mt-4 font-bold text-slate-400 animate-pulse">Menyelaraskan Data...</p>
   </div>
 
   <div id="data-container">
@@ -122,7 +114,6 @@
 </main>
 
 <script>
-// KONFIGURASI LINK SPREADSHEET
 const CONFIG = {
     device: "1y3BLZuMrOWzNxHY_e3v9feUuQSQahyCXuRwX4rdSNW0",
     aksesoris: "10sJQMKCQ0-J6k18X8u0laUxYgaYi4L8Oxeo1JNEOsqI",
@@ -141,16 +132,21 @@ async function loadData() {
     loader.classList.remove("hidden");
     container.classList.add("opacity-20");
     
-    const sheetId = CONFIG[currentCategory];
-    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
+    const url = `https://docs.google.com/spreadsheets/d/${CONFIG[currentCategory]}/export?format=csv&gid=0`;
     
     try {
         const res = await fetch(url);
-        if (!res.ok) throw new Error();
         const csvData = await res.text();
         const rows = csvData.split('\n').map(r => r.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/));
         
-        currentData = rows.filter(row => row[1] && row[1].trim() !== "" && !row[1].includes("Deskripsi"));
+        // FILTER PERBAIKAN: Menghapus baris kosong, header "Description", atau baris tanpa nama produk
+        currentData = rows.filter(row => {
+            const namaProduk = (row[1] || "").replace(/"/g, "").trim().toLowerCase();
+            return namaProduk !== "" && 
+                   namaProduk !== "description" && 
+                   namaProduk !== "deskripsi produk" && 
+                   namaProduk !== "produk";
+        });
         
         statusBadge.className = "w-2 h-2 rounded-full bg-emerald-500 status-pulse";
         statusText.textContent = "Terhubung";
@@ -160,7 +156,7 @@ async function loadData() {
         updateStats(currentData);
     } catch (err) {
         statusBadge.className = "w-2 h-2 rounded-full bg-red-500";
-        statusText.textContent = "Gagal Memuat";
+        statusText.textContent = "Error";
     } finally {
         loader.classList.add("hidden");
         container.classList.remove("opacity-20");
@@ -170,22 +166,15 @@ async function loadData() {
 function switchCategory(cat) {
     currentCategory = cat;
     ['device', 'aksesoris', 'demolive'].forEach(c => {
-        const btn = document.getElementById(`tab-${c}`);
-        if(c === cat) {
-            btn.className = "tab-active px-6 py-3 rounded-2xl font-bold text-sm whitespace-nowrap transition-all flex items-center gap-2";
-        } else {
-            btn.className = "bg-white text-slate-500 border border-slate-200 px-6 py-3 rounded-2xl font-bold text-sm whitespace-nowrap transition-all flex items-center gap-2";
-        }
+        document.getElementById(`tab-${c}`).className = (c === cat) ? "tab-active px-6 py-3 rounded-2xl font-bold text-sm whitespace-nowrap flex items-center gap-2" : "bg-white text-slate-500 border border-slate-200 px-6 py-3 rounded-2xl font-bold text-sm whitespace-nowrap flex items-center gap-2";
     });
-    document.getElementById("search-bar").value = "";
     loadData();
 }
 
 function renderUI(rows) {
     const desktop = document.getElementById("tabel-desktop");
     const mobile = document.getElementById("tabel-mobile");
-    desktop.innerHTML = "";
-    mobile.innerHTML = "";
+    desktop.innerHTML = ""; mobile.innerHTML = "";
 
     rows.forEach(col => {
         const id = (col[0] || "").replace(/"/g, "");
@@ -202,34 +191,23 @@ function renderUI(rows) {
             <tr class="hover:bg-blue-50/50 transition-all">
                 <td class="px-8 py-5">
                     <p class="text-[9px] font-mono font-bold text-slate-400 mb-0.5">${id}</p>
-                    <p class="font-bold text-slate-800 uppercase text-xs tracking-tight">${nama}</p>
+                    <p class="font-bold text-slate-800 uppercase text-xs">${nama}</p>
                 </td>
                 <td class="px-8 py-5 text-center font-bold text-slate-500">${inQty}</td>
                 <td class="px-8 py-5 text-center font-bold text-slate-500">${outQty}</td>
-                <td class="px-8 py-5 text-center">
-                    <span class="${badgeStyle} px-5 py-2 rounded-xl text-xs font-black inline-block min-w-[50px]">${sisa}</span>
-                </td>
+                <td class="px-8 py-5 text-center"><span class="${badgeStyle} px-5 py-2 rounded-xl text-xs font-black inline-block min-w-[50px]">${sisa}</span></td>
             </tr>`;
 
         mobile.innerHTML += `
-            <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 relative">
+            <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
                 <p class="text-[8px] font-mono font-bold text-slate-300 mb-1">${id}</p>
-                <h3 class="font-black text-slate-800 uppercase text-[11px] mb-4 leading-snug h-8 overflow-hidden">${nama}</h3>
-                <div class="flex justify-between items-center bg-slate-50 rounded-2xl p-3">
-                    <div class="text-center flex-1">
-                        <p class="text-[7px] font-bold text-slate-400 uppercase">In</p>
-                        <p class="text-xs font-bold">${inQty}</p>
-                    </div>
+                <h3 class="font-black text-slate-800 uppercase text-[11px] mb-4 h-8 overflow-hidden">${nama}</h3>
+                <div class="flex justify-between items-center bg-slate-50 rounded-2xl p-3 text-center">
+                    <div class="flex-1"><p class="text-[7px] font-bold text-slate-400">IN</p><p class="text-xs font-bold">${inQty}</p></div>
                     <div class="w-px h-6 bg-slate-200"></div>
-                    <div class="text-center flex-1">
-                        <p class="text-[7px] font-bold text-slate-400 uppercase">Out</p>
-                        <p class="text-xs font-bold">${outQty}</p>
-                    </div>
+                    <div class="flex-1"><p class="text-[7px] font-bold text-slate-400">OUT</p><p class="text-xs font-bold">${outQty}</p></div>
                     <div class="w-px h-6 bg-slate-200"></div>
-                    <div class="text-center flex-1">
-                        <p class="text-[7px] font-bold text-slate-400 uppercase">Sisa</p>
-                        <p class="text-xs font-black ${sisa === 1 ? 'text-red-500' : (sisa <= 0 ? 'text-slate-300' : 'text-blue-600')}">${sisa}</p>
-                    </div>
+                    <div class="flex-1"><p class="text-[7px] font-bold text-slate-400">STOK</p><p class="text-xs font-black ${sisa === 1 ? 'text-red-500' : (sisa <= 0 ? 'text-slate-300' : 'text-blue-600')}">${sisa}</p></div>
                 </div>
             </div>`;
     });
@@ -248,15 +226,12 @@ function updateStats(rows) {
 
 function filterItems() {
     const q = document.getElementById("search-bar").value.toLowerCase();
-    const dRows = document.getElementById("tabel-desktop").children;
-    const mCards = document.getElementById("tabel-mobile").children;
-
-    for (let r of dRows) r.style.display = r.innerText.toLowerCase().includes(q) ? "" : "none";
-    for (let c of mCards) c.style.display = c.innerText.toLowerCase().includes(q) ? "" : "none";
+    Array.from(document.getElementById("tabel-desktop").children).forEach(r => r.style.display = r.innerText.toLowerCase().includes(q) ? "" : "none");
+    Array.from(document.getElementById("tabel-mobile").children).forEach(c => c.style.display = c.innerText.toLowerCase().includes(q) ? "" : "none");
 }
 
 window.onload = loadData;
-setInterval(loadData, 60000); // Auto refresh tiap 1 menit
+setInterval(loadData, 60000);
 </script>
 </body>
 </html>
